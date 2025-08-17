@@ -1,5 +1,5 @@
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from flask import Flask, request, Response
 import logging
@@ -25,24 +25,9 @@ if not KOYEB_EXTERNAL_URL:
 
 # Handler for /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    welcome_message = (
-        "Welcome to the TechYYrom Bot! 🎉\n"
-        "Use /open to access the TechYY mini app."
-    )
+    welcome_message = "Welcome to the TechYYrom Bot! 🎉"
     await update.message.reply_text(welcome_message)
     logger.info("Sent welcome message to user %s", update.effective_user.id)
-
-# Handler for /open command
-async def open_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Open TechYY Mini App", url='https://t.me/TechYYrom_bot/Techyy')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "Click the button below to open the TechYY mini app!",
-        reply_markup=reply_markup
-    )
-    logger.info("Sent open app button to user %s", update.effective_user.id)
 
 # Flask route for webhook
 @flask_app.route('/telegram', methods=['POST'])
@@ -66,9 +51,8 @@ async def main():
         global application
         application = Application.builder().token(BOT_TOKEN).updater(None).build()
 
-        # Register handlers
+        # Register /start handler
         application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("open", open_app))
 
         # Set webhook
         webhook_url = f"{KOYEB_EXTERNAL_URL}/telegram"
