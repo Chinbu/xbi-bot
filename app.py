@@ -1,23 +1,29 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes
-from flask import Flask
+from telegram.ext import Application, CommandHandler, ContextTypes, WebhookUpdateHandler
+from flask import Flask, request, Response
 import logging
+import asyncio
 
-# Set up logging for debugging
+# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app for health checks
+# Initialize Flask app
 flask_app = Flask(__name__)
 
-# Get the bot token from environment variable
+# Get environment variables
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+RENDER_EXTERNAL_URL = os.getenv('RENDER_EXTERNAL_URL')  # Render provides this
+
 if not BOT_TOKEN:
     logger.error("BOT_TOKEN environment variable is not set!")
     raise ValueError("BOT_TOKEN environment variable is not set!")
+if not RENDER_EXTERNAL_URL:
+    logger.error("RENDER_EXTERNAL_URL environment variable is not set!")
+    raise ValueError("RENDER_EXTERNAL_URL environment variable is not set!")
 
-# Handler for the /start command
+# Handler for /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     welcome_message = (
         "Welcome to the TechYYrom Bot! 🎉\n"
@@ -26,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(welcome_message)
     logger.info("Sent welcome message to user %s", update.effective_user.id)
 
-# Handler for the /open command
+# Handler for /open command
 async def open_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
         [InlineKeyboardButton("Open TechYY Mini App", url='https://t.me/TechYYrom_bot/Techyy')]
@@ -38,31 +44,44 @@ async def open_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     logger.info("Sent open app button to user %s", update.effective_user.id)
 
-# Flask route for Render health checks
+# Flask route for webhook
+@flask_app.route('/telegram', methods=['POST'])
+async def telegram_webhook():
+    try:
+        update = Update.de_json(request.get_json(), application.bot)
+        await application.update_queue.put(update)
+        return Response(status=200)
+    except Exception as e:
+        logger.error("Webhook error: %s", str(e))
+        return Response(status=500)
+
+# Flask route for health check
 @flask_app.route('/')
 def health_check():
     return "Bot is alive!"
 
 async def main():
     try:
-        # Create the Application instance
-        application = Application.builder().token(BOT_TOKEN).build()
+        # Create Application instance
+        global application
+        application = Application.builder().token(BOT_TOKEN).updater(None).build()
 
-        # Register command handlers
+        # Register handlers
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("open", open_app))
 
-        # Start polling
-        logger.info("Starting bot polling...")
-        await application.run_polling(allowed_updates=Update.ALL_TYPES)
+        # Set webhook
+        webhook_url = f"{RENDER_EXTERNAL_URL}/telegram"
+        logger.info(f"Setting webhook to {webhook_url}")
+        await application.bot.set_webhook(url=webhook_url, allowed_updates=Update.ALL_TYPES)
+
+        # Start Flask
+        port = int(os.environ.get('PORT', 8080))
+        logger.info(f"Starting Flask server on port {port}")
+        flask_app.run(host='0.0.0.0', port=port, debug=False)
     except Exception as e:
         logger.error("Bot failed to start: %s", str(e))
         raise
 
 if __name__ == '__main__':
-    # Get port from environment variable or default to 8080
-    port = int(os.environ.get('PORT', 8080))
-    logger.info(f"Starting Flask server on port {port}")
-
-    # Run Flask in the main thread (Render doesn't need threading)
-    flask_app.run(host='0.0.0.0', port=port, debug=False)
+    asyncio.run(main())
