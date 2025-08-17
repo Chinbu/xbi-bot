@@ -1,88 +1,62 @@
-import logging
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-from aiogram.filters.command import Command
-from aiogram import Router
-from aiogram import F
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, ContextTypes
+from threading import Thread
+from flask import Flask
 
-logging.basicConfig(level=logging.INFO)
+# Get the bot token from environment variable
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-bot = Bot(token='YOUR_BOT_TOKEN')
-dp = Dispatcher()
-router = Router()
-dp.include_router(router)
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is not set!")
 
-@router.message(Command("start"))
-async def start_handler(message: types.Message):
-    await message.answer(
-        "Hello, main All in One Calculator bot hoon. Main various calculations mein madad kar sakta hoon. Yahan commands ki list hai:\n"
-        "/loan - Loan Calculator kholo\n"
-        "/bmi - BMI Calculator kholo\n"
-        "/area - Area Calculator kholo\n"
-        "/data - Data Converter kholo\n"
-        "/discount - Discount Calculator kholo\n"
-        "/length - Length Converter kholo\n"
-        "/mass - Mass Converter kholo\n"
-        "/numeral - Numeral System Converter kholo\n"
-        "/speed - Speed Converter kholo\n"
-        "/temp - Temperature Converter kholo\n"
-        "/time - Time Converter kholo\n"
-        "/volume - Volume Calculator kholo"
+# Handler for the /start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    welcome_message = (
+        "Welcome to the TechYYrom Bot! 🎉\n"
+        "Use /open to access the TechYY mini app."
+    )
+    await update.message.reply_text(welcome_message)
+
+# Handler for the /open command
+async def open_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Create an inline keyboard with a button that links to the mini app
+    keyboard = [
+        [InlineKeyboardButton("Open TechYY Mini App", url='https://t.me/TechYYrom_bot/Techyy')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Send a message with the button
+    await update.message.reply_text(
+        "Click the button below to open the TechYY mini app!",
+        reply_markup=reply_markup
     )
 
-async def open_calc_handler(message: types.Message, calc: str):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Open {calc.capitalize()} Calculator", web_app=WebAppInfo(url=f"http://t.me/TechYYrom_bot/Techyy?start={calc}"))]
-    ])
-    await message.answer(f"{calc.capitalize()} Calculator khol raha hoon...", reply_markup=keyboard)
+def main() -> None:
+    # Create the Application instance
+    application = Application.builder().token(BOT_TOKEN).build()
 
-@router.message(Command("loan"))
-async def loan_handler(message: types.Message):
-    await open_calc_handler(message, "loan")
+    # Register command handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("open", open_app))
 
-@router.message(Command("bmi"))
-async def bmi_handler(message: types.Message):
-    await open_calc_handler(message, "bmi")
+    # Start the bot
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
-@router.message(Command("area"))
-async def area_handler(message: types.Message):
-    await open_calc_handler(message, "area")
+def run_web_server():
+    flask_app = Flask(__name__)
 
-@router.message(Command("data"))
-async def data_handler(message: types.Message):
-    await open_calc_handler(message, "data")
+    @flask_app.route('/')
+    def health_check():
+        return "Bot is alive!"
 
-@router.message(Command("discount"))
-async def discount_handler(message: types.Message):
-    await open_calc_handler(message, "discount")
+    port = int(os.environ.get('PORT', 8080))
+    flask_app.run(host='0.0.0.0', port=port)
 
-@router.message(Command("length"))
-async def length_handler(message: types.Message):
-    await open_calc_handler(message, "length")
+if __name__ == '__main__':
+    # Run the web server in a separate thread for health checks
+    web_thread = Thread(target=run_web_server)
+    web_thread.start()
 
-@router.message(Command("mass"))
-async def mass_handler(message: types.Message):
-    await open_calc_handler(message, "mass")
-
-@router.message(Command("numeral"))
-async def numeral_handler(message: types.Message):
-    await open_calc_handler(message, "numeral")
-
-@router.message(Command("speed"))
-async def speed_handler(message: types.Message):
-    await open_calc_handler(message, "speed")
-
-@router.message(Command("temp"))
-async def temp_handler(message: types.Message):
-    await open_calc_handler(message, "temp")
-
-@router.message(Command("time"))
-async def time_handler(message: types.Message):
-    await open_calc_handler(message, "time")
-
-@router.message(Command("volume"))
-async def volume_handler(message: types.Message):
-    await open_calc_handler(message, "volume")
-
-if __name__ == "__main__":
-    dp.run_polling(bot)
+    # Run the main bot polling
+    main()
