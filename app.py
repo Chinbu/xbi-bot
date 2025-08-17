@@ -1,12 +1,12 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, WebhookUpdateHandler
+from telegram.ext import Application, CommandHandler, ContextTypes
 from flask import Flask, request, Response
 import logging
 import asyncio
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)sreligion - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
@@ -14,14 +14,14 @@ flask_app = Flask(__name__)
 
 # Get environment variables
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-RENDER_EXTERNAL_URL = os.getenv('RENDER_EXTERNAL_URL')  # Render provides this
+KOYEB_EXTERNAL_URL = os.getenv('KOYEB_EXTERNAL_URL')  # Koyeb provides this
 
 if not BOT_TOKEN:
     logger.error("BOT_TOKEN environment variable is not set!")
     raise ValueError("BOT_TOKEN environment variable is not set!")
-if not RENDER_EXTERNAL_URL:
-    logger.error("RENDER_EXTERNAL_URL environment variable is not set!")
-    raise ValueError("RENDER_EXTERNAL_URL environment variable is not set!")
+if not KOYEB_EXTERNAL_URL:
+    logger.error("KOYEB_EXTERNAL_URL environment variable is not set!")
+    raise ValueError("KOYEB_EXTERNAL_URL environment variable is not set!")
 
 # Handler for /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -49,7 +49,7 @@ async def open_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def telegram_webhook():
     try:
         update = Update.de_json(request.get_json(), application.bot)
-        await application.update_queue.put(update)
+        await application.process_update(update)
         return Response(status=200)
     except Exception as e:
         logger.error("Webhook error: %s", str(e))
@@ -71,7 +71,7 @@ async def main():
         application.add_handler(CommandHandler("open", open_app))
 
         # Set webhook
-        webhook_url = f"{RENDER_EXTERNAL_URL}/telegram"
+        webhook_url = f"{KOYEB_EXTERNAL_URL}/telegram"
         logger.info(f"Setting webhook to {webhook_url}")
         await application.bot.set_webhook(url=webhook_url, allowed_updates=Update.ALL_TYPES)
 
