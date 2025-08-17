@@ -1,13 +1,15 @@
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
-from threading import Thread
 from flask import Flask
 import logging
 
 # Set up logging for debugging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Initialize Flask app for health checks
+flask_app = Flask(__name__)
 
 # Get the bot token from environment variable
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -36,34 +38,31 @@ async def open_app(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     logger.info("Sent open app button to user %s", update.effective_user.id)
 
-def run_bot():
+# Flask route for Render health checks
+@flask_app.route('/')
+def health_check():
+    return "Bot is alive!"
+
+async def main():
     try:
         # Create the Application instance
         application = Application.builder().token(BOT_TOKEN).build()
+
         # Register command handlers
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("open", open_app))
+
+        # Start polling
         logger.info("Starting bot polling...")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        await application.run_polling(allowed_updates=Update.ALL_TYPES)
     except Exception as e:
         logger.error("Bot failed to start: %s", str(e))
         raise
 
-def run_web_server():
-    flask_app = Flask(__name__)
-
-    @flask_app.route('/')
-    def health_check():
-        return "Bot is alive!"
-
-    # Use the PORT environment variable, default to 8080
-    port = int(os.environ.get('PORT', 8080))
-    logger.info("Starting Flask server on port %d", port)
-    flask_app.run(host='0.0.0.0', port=port)
-
 if __name__ == '__main__':
-    # Run the Flask server in a separate thread for health checks
-    web_thread = Thread(target=run_web_server)
-    web_thread.start()
-    # Run the bot
-    run_bot()
+    # Get port from environment variable or default to 8080
+    port = int(os.environ.get('PORT', 8080))
+    logger.info(f"Starting Flask server on port {port}")
+
+    # Run Flask in the main thread (Render doesn't need threading)
+    flask_app.run(host='0.0.0.0', port=port, debug=False)
