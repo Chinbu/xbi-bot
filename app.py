@@ -6,7 +6,7 @@ import logging
 import asyncio
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)sreligion - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
@@ -14,7 +14,7 @@ flask_app = Flask(__name__)
 
 # Get environment variables
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-KOYEB_EXTERNAL_URL = os.getenv('KOYEB_EXTERNAL_URL')  # Koyeb provides this
+KOYEB_EXTERNAL_URL = os.getenv('KOYEB_EXTERNAL_URL')
 
 if not BOT_TOKEN:
     logger.error("BOT_TOKEN environment variable is not set!")
